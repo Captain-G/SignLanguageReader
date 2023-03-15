@@ -9,14 +9,14 @@ cap = cv2.VideoCapture(0)
 detector = HandDetector(maxHands=1)
 classifier = Classifier("Model/keras_model.h5", "Model/labels.txt")
 offset = 20
-image_size = 300
+image_size = 224
 counter = 0
-labels = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V",
-          "W", "X", "Y", "Z"]
+labels = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J"]
 
 while True:
     success, img = cap.read()
     img_output = img.copy()
+    # img_output = img
     hands, img = detector.findHands(img)
     if hands:
         hand = hands[0]
@@ -36,6 +36,7 @@ while True:
             width_gap = math.ceil((image_size - calculated_w) / 2)
             img_white[:, width_gap:calculated_w + width_gap] = img_resize
             prediction, index = classifier.getPrediction(img_white, draw=False)
+            # prediction, index = classifier.getPrediction(img_white)
 
         else:
             k = image_size / w
@@ -45,11 +46,13 @@ while True:
             height_gap = math.ceil((image_size - calculated_h) / 2)
             img_white[height_gap:calculated_h + height_gap, :] = img_resize
             prediction, index = classifier.getPrediction(img_white, draw=False)
+            # prediction, index = classifier.getPrediction(img_white)
 
         cv2.rectangle(img_output, (x - offset, y - offset - 50), (x - offset + 90, y - offset), (255, 0, 255),
                       cv2.FILLED)
         cv2.putText(img_output, labels[index], (x, y - 26), cv2.FONT_HERSHEY_COMPLEX, 2, (255, 255, 255), 2)
         cv2.rectangle(img_output, (x - offset, y - offset), (x + w + offset, y + h + offset), (255, 0, 255), 4)
+
         cv2.imshow("Image Crop", img_crop)
         cv2.imshow("Image White", img_white)
     cv2.imshow("Image", img_output)

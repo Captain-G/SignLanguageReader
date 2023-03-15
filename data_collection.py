@@ -7,14 +7,15 @@ import time
 cap = cv2.VideoCapture(0)
 detector = HandDetector(maxHands=1)
 offset = 20
-image_size = 300
+image_size = 224
 counter = 0
 
-folder = "Data/10"
+folder = "Data/J"
 
 while True:
     success, img = cap.read()
     hands, img = detector.findHands(img)
+
     if hands:
         hand = hands[0]
         x, y, w, h = hand["bbox"]
