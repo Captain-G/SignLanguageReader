@@ -1,65 +1,72 @@
+from flask import Flask, render_template, Response
 import cv2
 from cvzone.HandTrackingModule import HandDetector
-from cvzone.ClassificationModule import Classifier
 import numpy as np
 import math
+import time
+from cvzone.ClassificationModule import Classifier
 
+app = Flask(__name__)
 cap = cv2.VideoCapture(0)
 detector = HandDetector(maxHands=1)
 classifier = Classifier("Model/keras_model.h5", "Model/labels.txt")
-
 offset = 20
-imgSize = 300
+image_size = 224
+labels = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J"]
 
-folder = "Data/C"
-counter = 0
 
-labels = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V",
-          "W", "X", "Y", "Z"]
+@app.route('/')
+def index():
+    return render_template('index.html')
 
-while True:
-    success, img = cap.read()
-    imgOutput = img.copy()
-    hands, img = detector.findHands(img)
-    if hands:
-        hand = hands[0]
-        x, y, w, h = hand['bbox']
 
-        imgWhite = np.ones((imgSize, imgSize, 3), np.uint8) * 255
-        imgCrop = img[y - offset:y + h + offset, x - offset:x + w + offset]
+def generate_frames():
+    while True:
+        success, img = cap.read()
+        img_output = img.copy()
+        hands, img = detector.findHands(img)
+        if hands:
+            hand = hands[0]
+            x, y, w, h = hand["bbox"]
 
-        imgCropShape = imgCrop.shape
+            img_white = np.ones((image_size, image_size, 3), np.uint8) * 255
+            img_crop = img[y - offset:y + h + offset, x - offset:x + w + offset]
 
-        aspectRatio = h / w
+            img_crop_shape = img_crop.shape
 
-        if aspectRatio > 1:
-            k = imgSize / h
-            wCal = math.ceil(k * w)
-            imgResize = cv2.resize(imgCrop, (wCal, imgSize))
-            imgResizeShape = imgResize.shape
-            wGap = math.ceil((imgSize - wCal) / 2)
-            imgWhite[:, wGap:wCal + wGap] = imgResize
-            prediction, index = classifier.getPrediction(imgWhite, draw=False)
-            print(prediction, index)
+            aspect_ratio = h / w
+            if aspect_ratio > 1:
+                k = image_size / h
+                calculated_w = math.ceil(k * w)
+                img_resize = cv2.resize(img_crop, (calculated_w, image_size))
+                img_resize_shape = img_resize.shape
+                width_gap = math.ceil((image_size - calculated_w) / 2)
+                img_white[:, width_gap:calculated_w + width_gap] = img_resize
+                prediction, index = classifier.getPrediction(img_white, draw=False)
+            else:
+                k = image_size / w
+                calculated_h = math.ceil(k * h)
+                img_resize = cv2.resize(img_crop, (image_size, calculated_h))
+                img_resize_shape = img_resize.shape
+                height_gap = math.ceil((image_size - calculated_h) / 2)
+                img_white[height_gap:calculated_h + height_gap, :] = img_resize
+                prediction, index = classifier.getPrediction(img_white, draw=False)
 
-        else:
-            k = imgSize / w
-            hCal = math.ceil(k * h)
-            imgResize = cv2.resize(imgCrop, (imgSize, hCal))
-            imgResizeShape = imgResize.shape
-            hGap = math.ceil((imgSize - hCal) / 2)
-            imgWhite[hGap:hCal + hGap, :] = imgResize
-            prediction, index = classifier.getPrediction(imgWhite, draw=False)
+            cv2.rectangle(img_output, (x - offset, y - offset - 50), (x - offset + 90, y - offset), (255, 0, 255),
+                          cv2.FILLED)
+            cv2.putText(img_output, labels[index], (x, y - 26), cv2.FONT_HERSHEY_COMPLEX, 2, (255, 255, 255), 2)
+            cv2.rectangle(img_output, (x - offset, y - offset), (x + w + offset, y + h + offset), (255, 0, 255), 4)
 
-        cv2.rectangle(imgOutput, (x - offset, y - offset - 50),
-                      (x - offset + 90, y - offset - 50 + 50), (255, 0, 255), cv2.FILLED)
-        cv2.putText(imgOutput, labels[index], (x, y - 26), cv2.FONT_HERSHEY_COMPLEX, 2, (255, 255, 255), 2)
-        cv2.rectangle(imgOutput, (x - offset, y - offset),
-                      (x + w + offset, y + h + offset), (255, 0, 255), 4)
+            ret, buffer = cv2.imencode('.jpg', img_output)
+            frame = buffer.tobytes()
+            yield (b'--frame\r\n'
+                   b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
 
-        cv2.imshow("ImageCrop", imgCrop)
-        cv2.imshow("ImageWhite", imgWhite)
 
-    cv2.imshow("Image", imgOutput)
-    cv2.waitKey(1)
+@app.route('/video_feed')
+def video_feed():
+    return Response(generate_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
 
+
+if __name__ == '__main__':
+    app.run(debug=True)
