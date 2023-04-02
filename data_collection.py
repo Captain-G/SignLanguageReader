@@ -44,7 +44,6 @@ while True:
                 img_resize_shape = img_resize.shape
                 width_gap = math.ceil((image_size - calculated_w) / 2)
                 img_white[:, width_gap:calculated_w + width_gap] = img_resize
-
             cv2.imshow("Image Crop", img_crop)
             cv2.imshow("Image White", img_white)
         cv2.imshow("Image", img)

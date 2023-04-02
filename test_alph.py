@@ -17,18 +17,15 @@ while True:
     try:
         success, img = cap.read()
         img_output = img.copy()
-        # img_output = img
         hands, img = detector.findHands(img)
         if hands:
             hand = hands[0]
             x, y, w, h = hand["bbox"]
-
             img_white = np.ones((image_size, image_size, 3), np.uint8) * 255
             img_crop = img[y - offset:y + h + offset, x - offset:x + w + offset]
-
             img_crop_shape = img_crop.shape
-
             aspect_ratio = w / h
+
             if aspect_ratio > 1:
                 k = image_size / w
                 calculated_h = math.ceil(k * h)
@@ -37,10 +34,8 @@ while True:
                 height_gap = math.ceil((image_size - calculated_h) / 2)
                 img_white[height_gap:calculated_h + height_gap, :] = img_resize
                 prediction, index = classifier.getPrediction(img_white, draw=False)
-                # prediction, index = classifier.getPrediction(img_white)
 
             else:
-
                 k = image_size / h
                 calculated_w = math.ceil(k * w)
                 img_resize = cv2.resize(img_crop, (calculated_w, image_size))
@@ -48,15 +43,12 @@ while True:
                 width_gap = math.ceil((image_size - calculated_w) / 2)
                 img_white[:, width_gap:calculated_w + width_gap] = img_resize
                 prediction, index = classifier.getPrediction(img_white, draw=False)
-                # prediction, index = classifier.getPrediction(img_white)
 
             cv2.rectangle(img_output, (x - offset, y - offset - 50), (x - offset + 90, y - offset), (255, 0, 255),
                           cv2.FILLED)
             cv2.putText(img_output, labels[index], (x, y - 26), cv2.FONT_HERSHEY_COMPLEX, 2, (255, 255, 255), 2)
             cv2.rectangle(img_output, (x - offset, y - offset), (x + w + offset, y + h + offset), (255, 0, 255), 4)
 
-            # cv2.imshow("Image Crop", img_crop)
-            # cv2.imshow("Image White", img_white)
         cv2.imshow("Image", img_output)
         cv2.waitKey(1)
     except Exception as e:
